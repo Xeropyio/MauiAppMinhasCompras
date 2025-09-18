@@ -46,20 +46,28 @@ public partial class ListaProduto : ContentPage
     private async void txt_search_TextChanged(object sender, TextChangedEventArgs e)
     {
         try
-        {        
-		    string q = e.NewTextValue;
+        {
+            string q = e.NewTextValue;
 
             lst_produtos.IsRefreshing = true;
 
             lista.Clear();
 
-            List<Produto> tmp = await App.Db.Search(q);
+            // Obtém a lista completa de produtos do banco de dados
+            List<Produto> todosProdutos = await App.Db.GetAll();
 
-        tmp.ForEach(i => lista.Add(i));
+            // Filtra a lista com base no texto de busca
+            List<Produto> tmp = todosProdutos
+                .Where(p =>
+                    p.Descricao.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+                    p.Categoria?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+                .ToList();
+
+            tmp.ForEach(i => lista.Add(i));
         }
         catch (Exception ex)
         {
-           await DisplayAlert("Ops", ex.Message, "OK");
+            await DisplayAlert("Ops", ex.Message, "OK");
         }
         finally
         {
@@ -69,11 +77,32 @@ public partial class ListaProduto : ContentPage
 
     private void ToolbarItem_Clicked_1(object sender, EventArgs e)
     {
-		double soma = lista.Sum(i => i.Total);
+        // 1. Calcule o total geral dos produtos
+        double somaTotal = lista.Sum(i => i.Total);
 
-		string msg = $"O total é {soma:C}";
+        // 2. Agrupe os produtos por categoria e some os gastos de cada grupo
+        var gastosPorCategoria = lista
+            .GroupBy(p => p.Categoria)
+            .Select(g => new
+            {
+                // Usa o nome da categoria ou "Sem Categoria" se for nulo/vazio
+                Categoria = string.IsNullOrEmpty(g.Key) ? "Sem Categoria" : g.Key,
+                Total = g.Sum(p => p.Total)
+            })
+            .OrderByDescending(g => g.Total);
 
-		DisplayAlert("Total dos Produtos", msg, "OK");
+        // 3. Monte a mensagem do relatório
+        string msg = $"Total geral: {somaTotal:C}\n\n";
+        msg += "Gastos por Categoria:\n";
+
+        // Adicione cada categoria e seu total à mensagem
+        foreach (var categoria in gastosPorCategoria)
+        {
+            msg += $"- {categoria.Categoria}: {categoria.Total:C}\n";
+        }
+
+        // 4. Exiba o relatório
+        DisplayAlert("Relatório de Compras", msg, "OK");
     }
 
     private async void MenuItem_Clicked(object sender, EventArgs e)

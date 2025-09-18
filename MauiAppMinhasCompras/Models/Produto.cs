@@ -22,6 +22,9 @@ namespace MauiAppMinhasCompras.Models
         }
         public double Quantidade { get; set; }
         public double Preco {  get; set; }
+
+        // Adicione a nova propriedade Categoria aqui
+        public string Categoria { get; set; }
         public double Total { get => Quantidade * Preco; }
     }
 }
